@@ -1,6 +1,6 @@
 # SQL_Practice_Portfolio
 A portfolio showcasing daily SQL practice, with solutions, using a custom-built database'
-
+--------------------------------------------------------------------------------------------------------------------
 
 This repository contains my solutions to various SQL problems I've solved for my practice. I'm using a self-built database to work on different types of business problems.
 
