@@ -12,3 +12,10 @@ The goal of this portfolio is to demonstrate my proficiency in a wide range of S
 All problems are solved using the database schema and sample data provided in this repository.
 
 I'm committed to adding to this repository on a daily basis to showcase my continued learning and skill development.
+
+--------------------------------------------------------------------------------------------------------------------
+
+Number of Problems solved: 0
+
+--------------------------------------------------------------------------------------------------------------------
+
