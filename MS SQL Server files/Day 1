@@ -1,0 +1,287 @@
+/*
+----------------------------------------------------------------------------------------------------
+-- Day 1 -- 
+----------------------------------------------------------------------------------------------------
+*/
+
+-- Problem 1-- 
+
+-- Find the top 2 highest-paid employees within each department. 
+-- Your result should include the employee's name, department id, salary, and their rank within their department.
+
+with emp_ranking as ( 
+-- will not be doing any aggregation of salary, since each person has only one salary so even with sum, we'll get same rows, unless ofcourse there are duplicates, then removing them is aditional task.
+select 
+    emp_id,
+    first_name,
+    last_name,
+    dept_id,
+    salary,
+    row_number() over (partition by dept_id order by salary desc) as ranking
+from employees
+)
+select *
+from emp_ranking
+where ranking <=2;
+
+
+-- problem 2 --
+
+-- Find all departments that have a total of exactly 7 employees.
+
+select 
+    d.dept_id, 
+    d.dept_name,
+    count( e.emp_id) as total_employees
+from employees e   
+join department d 
+on e.dept_id = d.dept_id
+group by d.dept_id, d.dept_name
+having count(e.emp_id) = 7;
+
+-- problem 3 --
+
+-- part 1: Find the length of each consequtive sterak of sales datys. 
+--A streak is defined as a series of consecutive days where at least one sale occurred.
+-- part2: longest gap (in days) between two consecutive sales for each employee.
+
+-- part 1 solution: 
+with row_ranking as (
+select 
+    sale_id,
+    sale_date,
+    day(sale_date) as day_dates,
+    employee_id,
+    row_number() over (partition by employee_id order by sale_date) as ranking
+from sales
+),
+consequtive_groups as (
+select 
+    sale_id,
+    sale_date,
+    day_dates,
+    employee_id,
+    ranking,
+    (day_dates - ranking) as streak_group
+from row_ranking
+),
+streak_grouping as (
+select 
+    employee_id, 
+    streak_group,
+    count(*) as streak_count
+from consequtive_groups
+group by employee_id, streak_group
+)
+select * 
+from streak_grouping
+where streak_count > 1;
+
+-- part 2 solution: 
+
+with Ranksales as (
+    select 
+        employee_id,
+        sale_date,
+        Lag(sale_date, 1) over (partition by employee_ID order by sale_date) as previous_sale_date
+    from sales
+),
+calcualtedgaps as (
+    select 
+        employee_id,
+        sale_date,
+        previous_sale_date,
+        datediff(day, previous_Sale_date, sale_date) as days_since_last_date 
+    from ranksales
+)
+select 
+    employee_id, 
+    max(days_since_last_date) as lognest_gap_days
+from calcualtedgaps
+group by employee_id;
+
+-- problem 4 -- 
+
+-- Find the single most recent action for each customer from the customer_actions table.
+
+select * 
+from (
+select 
+    action_id,
+    action_date,
+    customer_id,
+    row_number() over (partition by customer_id order by action_date desc) as ranking
+from customer_actions 
+)t  
+where ranking = 1;
+
+-- problem 5 -- 
+
+-- Find all employees whose salary is above the average salary of their department.
+
+with average_salary as (
+select 
+    emp_id,
+    dept_id,
+    salary,
+    avg(salary) over (partition by dept_id) as avg_salary
+from employees
+)
+select 
+    * 
+from average_salary 
+where salary > avg_salary;
+
+
+-- problem 6 -- 
+
+/*
+Categorize each employee into a salary range based on the following criteria:
+'Low' for salaries under $65,000
+'Medium' for salaries between $65,000 and $80,000 (inclusive)
+'High' for salaries above $80,000
+*/ 
+
+select 
+    first_name, 
+    last_name, 
+    salary,
+    case 
+        when salary < 65000 then 'Low'
+        when salary between 65000 and 80000 then 'Medium'
+        else 'High'
+    end as salary_cateogry 
+from employees
+order by salary desc;
+
+-- problem 7 -- 
+
+/*
+You have a products table and a new product_updates table with potential changes. Update the price of any products that exist in both tables and insert any new products from the product_updates table into the products table.
+
+Input Tables
+products table snippet (Initial State):
+| product_id | product_name | price |
+|---|---|---|
+| 301 | Laptop | 1200.00 |
+| 302 | Mouse | 25.00 |
+| 303 | Keyboard | 75.00 |
+
+product_updates table snippet (New Data):
+| product_id | product_name | price |
+|---|---|---|
+| 303 | Mechanical Keyboard | 85.00 |
+| 304 | Monitor | 250.00 |
+
+Desired Output
+products table snippet (After MERGE):
+| product_id | product_name | price |
+|---|---|---|
+| 301 | Laptop | 1200.00 |
+| 302 | Mouse | 25.00 |
+| 303 | Mechanical Keyboard | 85.00 |
+| 304 | Monitor | 250.00 |
+
+*/
+
+merge into products as target 
+using product_updates as source 
+on(target.product_id = source.product_id)
+when matched then 
+update Set 
+    target.product_name = source.product_name,
+    target.price = source.price 
+when not matched then 
+    insert (product_id, product_name, price)
+    values(source.product_id, source.product_name, source.price);
+
+-- Problem 8 -- 
+
+-- part 1 : Calculate the cumulative revenue over time, ordered by sale_date.
+-- part 2 : Calculate the 3-day moving average of revenue, ordered by sale_date.
+
+-- part 1 solution 
+
+select 
+    sale_id,
+    sale_date,
+    revenue,
+    sum(revenue) over(order by sale_date) as cumulative_revenue 
+from sales;
+
+-- part 2 solution 
+
+select 
+    sale_id,
+    sale_date,
+    revenue,
+    avg(revenue) over (order by sale_date rows between 2 preceding and current row) as three_day_moving_average
+from sales;
+
+-- Problem 9 -- 
+
+-- Find all employees who report to John Doe (employee ID 101), including John Doe himself.
+
+with employee_hierarchy as (
+    select -- anchor member
+        emp_id,
+        first_name,
+        last_name,
+        manager_id,
+        0 as level
+    from employees 
+    where emp_id = 101
+
+    union all 
+
+    select -- recursive menber 
+        e.emp_id,
+        e.first_name,
+        e.last_name,
+        e.manager_id,
+        eh.level + 1 as level 
+    from employees e  
+    join employee_hierarchy eh 
+    on e.manager_id = eh.emp_id
+)
+select 
+    emp_id,
+    first_name,
+    last_name,
+    manager_id
+from employee_hierarchy 
+order by level, emp_id;
+
+-- problem 10 -- 
+
+-- find the time between a customer's first and second action of any type. 
+
+with rankedactions as (
+    select 
+        customer_id, 
+        action_date,
+        row_number() over (partition by customer_id order by action_date asc) as ranking 
+    from customer_actions
+)
+select 
+    s1.customer_id,
+    datediff(day, s1.action_date, s2.action_date) as days_between_first_two_actions
+from rankedactions s1
+join rankedactions s2
+on s1.customer_id = s2.customer_id
+where s1.ranking = 1 and s2.ranking = 2;
+
+-- problem 11 -- 
+
+-- Find all customers who have not placed an order.
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name
+FROM
+    customers c
+LEFT JOIN
+    orders o ON c.customer_id = o.customer_id
+WHERE
+    o.order_id IS NULL;
