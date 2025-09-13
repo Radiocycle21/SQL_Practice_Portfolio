@@ -20,6 +20,7 @@ This script uses INSERT INTO statements to populate every table in the database 
     - order_details (64 rows)
     - sales (64 rows)
     - customer_actions (63 rows)
+    - product_updates (10 rows)
 
 This data is crucial for practicing and testing SQL queries. 
 It provides a realistic set of records that you can use to learn about table joins, data cleaning and data analysis.
@@ -433,6 +434,19 @@ INSERT INTO sales (order_id, product_id, customer_id, sale_date, quantity, reven
 (563, 404, 314, '2024-05-10', 1, 39.99, 107);
 GO
 
+INSERT INTO product_updates (product_id, product_name, category, price, stock_quantity) VALUES
+(401, 'Wireless Mouse (New)', 'Electronics', 24.99, 100),    
+(407, 'Smartphone Pro', 'Electronics', 649.99, 65),          
+(410, 'Smartwatch v2.0', 'Wearables', 149.99, 90),           
+(431, 'External SSD', 'Accessories', 129.99, 150),          
+(432, 'Graphic Tablet', 'Electronics', 259.99, 80),         
+(433, 'Smart Coffee Maker', 'Home Automation', 89.99, 50),     
+(434, 'Gaming Monitor', 'Electronics', 429.99, 45),          
+(435, 'Webcam', 'Electronics', 59.99, 200),                 
+(436, 'Air Fryer', 'Home Appliances', 99.99, 110),            
+(437, 'E-reader', 'Wearables', 119.99, 70);
+GO
+
 
 -- induvidual checks
 
@@ -462,6 +476,8 @@ select count(*) from products ;
 select * from sales ; 
 select count(*) from sales;
 
+select * from product_updates ; 
+select count(*) from  product_updates ;
 
 -- ----------------------------------------------------------------------------------------------------
     -- Report -- 
@@ -524,4 +540,51 @@ UNION ALL
 -- Count of rows in the customer_actions table
 SELECT 'customer_actions', 
 COUNT(*) 
-FROM customer_actions;
+FROM customer_actions
+
+union all 
+
+-- Count of rows in the product_updates table
+SELECT 'product_updates', 
+COUNT(*) 
+FROM product_updates;
+
+-- ----------------------------------------------------------------------------------------------------
+    -- Reverting Products table -- 
+-- ----------------------------------------------------------------------------------------------------
+
+-- run this below script to update the products table to revert the dataset to original
+-- select all the lines below and run.
+-- ----------------------------------------------------------------------------------------------------
+
+-- First, we delete the 7 rows that were newly inserted.
+DELETE FROM products
+WHERE product_id IN (431, 432, 433, 434, 435, 436, 437);
+
+-- Step 2: Update the 3 rows that were changed, reverting all columns to their original values.
+UPDATE products
+SET
+    product_name = CASE
+        WHEN product_id = 401 THEN 'Wireless Mouse'
+        WHEN product_id = 407 THEN 'Smartphone'
+        WHEN product_id = 410 THEN 'Smartwatch'
+    END,
+    category = CASE
+        WHEN product_id = 401 THEN 'Electronics'
+        WHEN product_id = 407 THEN 'Electronics'
+        WHEN product_id = 410 THEN 'Wearables'
+    END,
+    price = CASE
+        WHEN product_id = 401 THEN 29.99
+        WHEN product_id = 407 THEN 599.99
+        WHEN product_id = 410 THEN 129.99
+    END,
+    stock_quantity = CASE
+        WHEN product_id = 401 THEN 150
+        WHEN product_id = 407 THEN 60
+        WHEN product_id = 410 THEN 80
+    END
+WHERE product_id IN (401, 407, 410);
+
+
+
