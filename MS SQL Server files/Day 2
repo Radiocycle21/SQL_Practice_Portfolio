@@ -1,0 +1,230 @@
+/*
+----------------------------------------------------------------------------------------------------
+-- Day 2 -- 
+----------------------------------------------------------------------------------------------------
+*/
+
+-- Problem 1 -- 
+
+--  Find the longest gap (in days) between two consecutive sales for each employee.
+
+with previous_day_find as (
+select 
+    employee_id,
+    sale_date as current_day,
+    lag(sale_date, 1) over (partition by employee_id order by sale_date) as previous_day 
+from sales
+),
+days_difference as (
+select 
+    employee_id,
+    current_day,
+    previous_day,
+    datediff(day, previous_day, current_day) as days_differnce 
+from previous_day_find
+)
+select 
+    employee_id,
+    max(days_differnce) as longest_gap 
+from days_difference
+group by employee_id;
+
+-- Problem 2 -- 
+
+/*
+Assign a price category to each product based on its price.
+
+Your query should return the product_name, price, and a new column called price_category with the following labels:
+'Affordable' for products with a price < $50
+'Mid-Range' for products with a price between $50 and $150
+'High-End' for products with a price > $150
+*/
+
+select 
+    product_id,
+    product_name,
+    price,
+    case 
+        when price < 50 then 'Affordable'
+        when price between 50 and 150 then 'Mid_Range'
+        else 'High-End'
+    end as price_category
+from products
+order by price desc;
+
+-- Problem 3 -- 
+
+-- Using a MERGE statement, update the products table with data from the product_updates table.
+
+merge into products as target 
+using product_updates as source
+on (target.product_id = source.product_id)
+when matched then
+    update set 
+        target.product_name = source.product_name,
+        target.price = source.price,
+        target.category = source.category,
+        target.stock_quantity = source.stock_quantity
+when not matched then
+   insert(product_id, product_name, category, price, stock_quantity)
+   values (source.product_id, source.product_name, source.category, source.price, source.stock_quantity);
+
+select * from products;
+select count(*) from products;
+
+-- problem 4 -- 
+
+-- Find all products that have never been sold.
+
+SELECT
+    p.product_id,
+    p.product_name
+FROM
+    products p
+LEFT JOIN
+    sales s ON p.product_id = s.product_id
+WHERE
+    s.product_id IS NULL;
+
+-- problem 5 -- 
+
+-- Using the employees table, 
+-- find the level of seniority for each employee. The CEO is at level 1, 
+-- their direct reports are at level 2, and so on.
+
+with employee_hierarchy as (
+    select 
+        emp_id,
+        first_name,
+        last_name,
+        manager_id,
+        1 as seniority_level
+    from employees 
+    where manager_id is null 
+
+    UNION ALL
+
+    select 
+        e.emp_id,
+        e.first_name,
+        e.last_name,
+        e.manager_id,
+        eh.seniority_level + 1 as seniority_level 
+    from employees e 
+    join employee_hierarchy eh 
+    on e.manager_id = eh.emp_id
+)
+select 
+    emp_id, 
+    first_name,
+    last_name,
+    seniority_level
+from employee_hierarchy
+order by seniority_level;
+
+-- problem 6 -- 
+
+-- Using the sales table, find all sales that have revenue higher than the average sale revenue across the entire company.
+
+select * 
+from (
+select 
+    sale_id,
+    revenue,
+    avg(revenue) over() as average_revenue 
+from sales
+)t 
+where revenue > average_revenue;
+
+-- probelem 7 -- 
+
+-- Using the customer_actions table, find the time (in days) between a customer's first and second action of any type.
+
+with rankedactions as (
+select 
+    customer_id,
+    action_date, 
+    lead(action_date) over (partition by customer_id order by action_date) as next_action_date,
+    row_number() over (partition by customer_id order by action_date) as ranking
+from customer_actions
+)
+select 
+    customer_id,
+    datediff(day, action_date, next_action_date) as days_between_frist_two_actions
+from rankedactions 
+where ranking = 1 and next_action_date is not null;
+
+-- problem 8 -- 
+
+-- Using the sales table, find the most recent sale record for each product. 
+-- If a product has multiple sales on the same date, use the sale_id as the tie-breaker to find the most recent one.
+
+select * 
+from (
+select 
+    sale_id,
+    product_id,
+    sale_date,
+    revenue,
+    row_number() over (partition by product_id order by sale_date desc) as ranking
+from sales
+)t 
+where ranking = 1;
+
+-- problem 9 -- 
+
+-- Using the products and sales tables, find the top 3 products that have generated the highest total revenue.
+
+select top 3
+    p.product_id,
+    p.product_name,
+    sum(s.revenue) as total_revenue
+from sales s 
+join products p
+on s.product_id = p.product_id
+group by p.product_id, p.product_name
+order by  sum(s.revenue) desc;
+
+-- problem 10 -- 
+
+/* 
+Using the products table, find the count of products for each of the following price categories:
+'Affordable': Price less than or equal to $50
+'Standard': Price greater than $50 and less than or equal to $150
+'Premium': Price greater than $150
+Your final query should return two columns: price_category and product_count.
+*/
+
+select 
+    case 
+        when price <= 50 then 'Affordable'
+        when price between 50 and 150 then 'Standard'
+        else 'Preimum'
+    end as Price_category,
+    count(*) as Product_count
+from products
+group by  case 
+            when price <= 50 then 'Affordable'
+            when price between 50 and 150 then 'Standard'
+            else 'Preimum'
+        end;
+
+-- problem 11 -- 
+
+-- Using the sales table, write a query to calculate a running total of revenue over time.
+
+select 
+    sale_date,
+    revenue, 
+    sum(revenue) over (order by sale_date) as running_total_revenue
+from sales;
+
+-- problem 12 -- 
+
+-- using the sales table, wirte a query to calculate the 7 days moving average
+
+select 
+    sale_date,
+    revenue,
+    avg(revenue) over (order by sale_date rows between 6 preceding and current row) as moving_average
+from sales;
