@@ -195,6 +195,9 @@ when not matched then
     insert (product_id, product_name, price)
     values(source.product_id, source.product_name, source.price);
 
+select * from products;
+select count(*) from products;
+
 -- Problem 8 -- 
 
 -- part 1 : Calculate the cumulative revenue over time, ordered by sale_date.
