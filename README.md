@@ -17,9 +17,11 @@ I'm committed to adding to this repository on a daily basis to showcase my conti
 
 --------------------------------------------------------------------------------------------------------------------
 
-Day: 2
+Day: 3
 
-Number of Problems solved: 23
+Number of Problems solved: 39
+
+number of days skipped: 1
 
 --------------------------------------------------------------------------------------------------------------------
 
