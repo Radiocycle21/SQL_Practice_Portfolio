@@ -1,0 +1,421 @@
+/*
+----------------------------------------------------------------------------------------------------
+-- Day 3 -- 
+----------------------------------------------------------------------------------------------------
+*/
+
+-- Problem 1 -- 
+
+/*
+Using the employees and department tables, write a query to find the employee with the highest salary in each department. 
+Your result should include the department name, the employee's full name, and their salary.
+*/
+
+select * 
+from (
+    select
+        e.emp_id,
+        concat(e.first_name, ' ', e.last_name) as full_name,
+        e.dept_id,
+        d.dept_name,
+        e.salary,
+        row_number() over (partition by e.dept_id order by e.salary desc) as ranking
+    from employees e  
+    left join department d  
+    on e.dept_id = d.dept_id
+)t 
+where ranking = 1;
+
+-- Problem 2 -- 
+
+/*
+Using the employees and department tables, write a query to find the two employees with the lowest salaries in each department. 
+If a department has fewer than two employees, all of them should be included.
+*/
+
+select * 
+from (
+   select
+        e.emp_id,
+        concat(e.first_name, ' ', e.last_name) as full_name,
+        e.dept_id,
+        d.dept_name,
+        e.salary,
+        row_number() over (partition by e.dept_id order by e.salary) as ranking
+    from employees e  
+    left join department d  
+    on e.dept_id = d.dept_id
+)t  
+where ranking  <=2;
+
+-- Problem 3 -- 
+
+/*
+Using the sales table, write a query to calculate the running total of revenue for each employee_id based on the sale_date. 
+The results should be ordered chronologically.
+
+Your query should return the sale_date, employee_id, the revenue for that specific sale, and the running_total_revenue 
+up to that point for that employee.
+*/
+
+select 
+    employee_id,
+    sale_date,
+    revenue,
+    sum(revenue) over(partition by employee_id order by sale_date) as running_total
+from sales;
+
+-- problem 4-- 
+/*
+Using the sales table, write a query to calculate the 3-day moving average of revenue for each employee. 
+The result should be ordered by employee_id and then by sale_date.
+
+The moving average for a given sale should be the average of the revenue 
+for that sale and the two sales that immediately preceded it for the same employee.
+*/ 
+
+select 
+    employee_id,
+    sale_date,
+    revenue,
+    avg(revenue) over(partition by employee_id order by sale_date rows between 2 preceding and current row) as moving_average
+from sales;
+
+-- problem 5 -- 
+
+/*
+Using the employees and department tables, write a single query to report the total salary for each department,
+but broken down into two columns:
+
+The total salary for employees hired before the year 2020.
+The total salary for employees hired in or after the year 2020.
+
+Your result should show the dept_id, total_salary_pre_2020, and total_salary_2020_plus.
+
+*/
+
+select 
+    dept_id,
+    sum(case when year(hire_date) < 2020 then salary else 0 end) as total_salary_pre_2020,
+    sum(case when year(hire_date) >= 2020 then salary else 0 end) as total_salary_2020_plus
+from employees
+group by dept_id;
+
+-- problem 6 -- 
+
+/*
+Using the customer_actions table, write a query to find the longest streak of consecutive days a customer performed the same action_type.
+
+Your result should show the customer_id, the action_type, and the length of the longest streak.
+*/
+
+with ranked_actions as (
+select 
+    customer_id,
+    action_type,
+    action_date,
+    row_number() over(partition by customer_id, action_type order by action_date) as ranking
+from customer_actions
+),
+difference_actions as (
+    select 
+        customer_id,
+        action_type,
+        ranking,
+        datediff(day, action_date, ranking) as group_id
+    from ranked_actions
+),
+streak_length as (
+select 
+    customer_id,
+    action_type,
+    count(*) as streak_count
+from difference_actions
+group by customer_id, action_type, group_id
+)
+select 
+    customer_id,
+    action_type,
+    max(streak_count) as longest_streak
+from streak_length 
+group by customer_id, action_type;
+
+-- problem 7 -- 
+
+/*
+give me the count of all actions in the following custom order--
+
+'login'
+'search'
+'product_view'
+'add_to_cart'
+'checkout'
+'logout'
+'product_reveiw'
+'safety_report'
+*/
+
+select 
+    action_type,
+    count(*) as count_actions
+from customer_actions
+group by action_type
+order by 
+    case action_type 
+        when  'login'          then 1
+        when  'search'         then 2
+        when  'product_view'   then 3
+        when  'add_to_cart'    then 4
+        when  'checkout'       then 5
+        when  'logout'         then 6
+        when  'product_reveiw 'then 7
+        when  'safety_report'  then 8
+        else 9 
+    end;
+
+-- problem 8-- 
+
+/*
+Using the customer_actions table, write a query to find the time gap (in days) between a customer's consecutive actions.
+
+The result should show each customer_id, the action_date of the current action, 
+and the number of days since the previous action for that customer. 
+The first action for each customer should have a gap of NULL.
+*/
+
+with previous_days as (
+select 
+   customer_id,
+   action_date as current_dates,
+   lag(action_date) over (partition by customer_id order by action_date) as previous_day 
+from customer_actions 
+)
+select 
+    customer_id, 
+    current_dates,
+    previous_day,
+    datediff(day, previous_day, current_dates) as days_since_pervious_action
+from previous_days;
+
+-- Porblem 9 -- 
+
+/*
+Using the sales table, find and remove duplicate entries. A duplicate is defined as a row with the same customer_id, 
+product_id, and sale_date.
+
+If duplicates exist, keep only the entry with the highest revenue for that group.
+*/
+
+select * 
+from (
+select 
+    *,
+    row_number() over (partition by customer_id, product_id, sale_date order by revenue desc) as rn
+from sales
+)t 
+where rn = 1;
+
+-- problem 10 -- 
+
+/*
+Using the employees and department tables, write a query to find all employees who earn less than the average salary of their department.
+
+Your result should include the employee's first_name, last_name, salary, dept_name, and their dept_name's average salary.
+*/
+
+select * 
+from(
+SELECT
+    e.first_name,
+    e.last_name,
+    e.salary,
+    e.dept_id,
+    d.dept_name,
+    avg(e.salary) over(partition by e.dept_id) as average_salary
+from employees e  
+left join department d 
+on e.dept_id = d.dept_id
+)t 
+where salary < average_salary;
+
+-- problem 11 -- 
+
+/*
+Using the employees and department tables, write a query to find top 2 employees who earn less than the average salary of their department.
+
+Your result should include the employee's first_name, last_name, salary, dept_name, and their dept_name's average salary.
+*/
+
+with salary_below_average as (
+select * 
+from(
+SELECT
+    e.first_name,
+    e.last_name,
+    e.salary,
+    e.dept_id,
+    d.dept_name,
+    avg(e.salary) over(partition by e.dept_id) as average_salary
+from employees e  
+left join department d 
+on e.dept_id = d.dept_id
+)t 
+where salary < average_salary
+),
+ranked_employees as (
+select 
+    first_name,
+    last_name,
+    salary,
+    dept_id,
+    dept_name,
+    average_salary,
+    row_number() over (partition by dept_id order by salary desc) as rn
+from salary_below_average 
+) 
+select * 
+from ranked_employees 
+where rn <= 2;
+
+-- problem 12 -- 
+
+/*
+Using the employees and department tables, write a query to categorize each employee into one of three groups based on both their salary and hire date:
+
+'Senior': Hired before 2020 with a salary of more than $100,000.
+
+'Junior': Hired in or after 2020 with a salary of less than $70,000.
+
+'Mid-Level': All other employees.
+
+Your final query should then report the total count of employees in each of these three categories, for each department. 
+The result should show the department name and the counts for each category.
+*/
+
+select 
+    e.dept_id,
+    d.dept_name,
+    sum(case when e.salary > 100000 and year(e.hire_date) < 2020 then 1 else 0 end ) as num_senior_employees,
+    sum(case when e.salary < 70000 and year(e.hire_date) >= 2020 then 1 else 0 end ) as num_junior_employees,
+    sum( case 
+                when (e.salary <= 100000 and year(e.hire_date) >= 2020)
+                or   (e.salary >= 70000 and year(e.hire_date) < 2020) 
+                or   (e.salary between 70000 and 100000 and year(e.hire_date) between 2020 and getdate()) 
+                then 1 else 0 
+          end) as num_mid_level_employees
+from employees e  
+left join department d  
+on e.dept_id = d.dept_id
+group by e.dept_id, d.dept_name
+order by dept_id;
+
+-- or a direct solution
+
+select 
+    e.dept_id,
+    d.dept_name,
+    sum(case when e.salary > 100000 and year(e.hire_date) < 2020 then 1 else 0 end ) as num_senior_employees,
+    sum(case when e.salary < 70000 and year(e.hire_date) >= 2020 then 1 else 0 end ) as num_junior_employees,
+    count(e.emp_id) - 
+    sum(case when e.salary > 100000 and year(e.hire_date) < 2020 then 1 else 0 end ) -
+    sum(case when e.salary < 70000 and year(e.hire_date) >= 2020 then 1 else 0 end ) 
+    as num_mid_level_employees
+from employees e  
+left join department d  
+on e.dept_id = d.dept_id
+group by e.dept_id, d.dept_name
+order by dept_id;
+
+-- problem 13 -- 
+
+/*
+assume the employees table has an additional column called manager_id which refers to the emp_id of the employee's manager.
+
+Your task is to write a query to find all employees who report to a specific manager, including all their direct and indirect reports (their reports' reports, and so on).
+Let's find all employees who report to the employee with emp_id = 101.
+*/
+
+with employees_manager as (
+    select 
+        emp_id, 
+        first_name,
+        last_name,
+        1 as heirarchy_level 
+    from employees 
+    where emp_id = 101
+
+    union all 
+
+    select 
+        e.emp_id,
+        e.first_name,
+        e.last_name,
+        em.heirarchy_level + 1 as heirarchy_level 
+    from employees e   
+    join employees_manager em
+    on e.manager_id = em.emp_id
+)
+select * 
+from employees_manager
+order by heirarchy_level;
+
+-- problem 14 -- 
+
+/* 
+Using the customer_actions table, write a query to find all instances where a customer's action_type changed from a 'login' to a 'checkout' in two consecutive actions. 
+The two actions must have occurred on the same day.
+
+For each instance, your result should show the customer_id, the action_date of the purchase, and the action_date of the preceding login.
+*/
+
+with user_action_lag as (
+select 
+    customer_id,
+    action_type,
+    action_date,
+    lag(action_type) over (partition by customer_id order by action_date) as previous_action,
+    lag(action_date) over (partition by customer_id order by action_date) as previous_action_date
+from customer_actions 
+)
+select 
+    customer_id,
+    previous_action_date as login_date,
+    action_date as checkout_date
+from user_action_lag
+where 
+    action_type = 'checkout'
+    and previous_action = 'Login'
+    and cast(action_date as date) = cast(previous_action_date as date);
+
+
+-- problem 15 -- 
+
+-- Using the customer_actions table, find all customer_ids who have made a 'login' but have never made a 'checkout'.
+
+select 
+    customer_id,
+    action_type
+from customer_actions
+where action_type = 'Login'
+and customer_id not in (select customer_id from customer_actions where action_type = 'Checkout');
+
+-- Problem 16 -- 
+
+-- You have a products table (the target) and a product_update table (the source). 
+-- Your task is to update the products table using the data from the product_update table.
+
+merge into products as target 
+using product_updates as source 
+on (target.product_id = source.product_id)
+when matched then 
+    update set 
+        target.product_name = source.product_name,
+        target.price = source.price,
+        target.category = source.category,
+        target.stock_quantity = source.stock_quantity
+when not matched then 
+    insert (product_id, product_name, category, price, stock_quantity)
+    values (source.product_id, source.product_name, source.category, source.price, source.stock_quantity);
+
+    select * from products;
+    select count(*) from products;
