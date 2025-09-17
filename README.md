@@ -35,3 +35,4 @@ This repository contains the following key files and components:
 4.  **BusinessDB Schema ER Diagram** (Draw.io File) - Refer to this file for a visual representation of the database tables and relationships.
 5.  **License Page** - Licensing details for the project.
 6.  **README Page** - This document, providing an overview of the repository.
+7.  **MySQL files** - SQL scripts using MySQL database.
