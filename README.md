@@ -21,7 +21,7 @@ Day: 3
 
 Number of Problems solved: 39
 
-number of days skipped: 1
+number of days missed: 1
 
 --------------------------------------------------------------------------------------------------------------------
 
