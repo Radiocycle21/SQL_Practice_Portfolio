@@ -1,0 +1,291 @@
+/*
+----------------------------------------------------------------------------------------------------
+-- Day 4 -- 
+----------------------------------------------------------------------------------------------------
+*/
+
+-- Problem 1 -- 
+
+/*
+Find the top 3 highest-paid employees in each department. If a department has fewer than 3 employees, list all of them. 
+The result should include the employee's first name, last name, department name, and salary, ordered by department and then by salary in descending order.
+*/
+
+select * 
+from (
+select 
+    e.first_name,
+    e.last_name,
+    d.dept_name as department_name,
+    e.salary,
+    row_number() over (partition by e.dept_id order by salary desc) as ranking
+from employees e  
+join department d  
+on e.dept_id = d.dept_id
+)t 
+where ranking <= 3
+order by department_name; 
+
+-- Problem 2-- 
+
+/* 
+Calculate the running total of revenue for each employee over time. 
+The result should show the employee_id, sale_date, revenue for that specific sale, and the cumulative revenue up to that date, 
+ordered by employee_id and then by sale_date.
+*/ 
+
+select 
+    employee_id,
+    sale_date,
+    revenue,
+    sum(revenue) over (partition by employee_id order by sale_date ) as cumulative_revenue
+from sales
+order by 
+    employee_id,
+    sale_date;
+
+-- problem 3 -- 
+
+-- Find the dept_name and the average salary for departments where the average salary is greater than $70,000.
+
+select * 
+from (
+select 
+    d.dept_name,
+    e.salary,
+    avg(e.salary) over(partition by d.dept_id) as average_salary
+from employees e 
+join department d  
+on e.dept_id = d.dept_id 
+)t 
+where average_salary > 70000;
+
+-- or another approch if we want just single rows for the departments. 
+
+SELECT
+    d.dept_name,
+    AVG(e.salary) AS average_salary
+FROM
+    employees e
+JOIN
+    department d ON e.dept_id = d.dept_id
+GROUP BY
+    d.dept_name
+HAVING
+    AVG(e.salary) > 70000;
+
+-- problem 4 -- 
+
+/*
+Find all employees who have been with the company for at least 5 consecutive years. 
+An employee's tenure is considered continuous if there is no gap of more than 1 year between any two successive hiring records. 
+Assume the employees table has multiple rows for the same emp_id with different hire_date entries to represent re-hires (or similar scenarios).
+For this problem, let's simplify and just use the single hire_date column and the current date.
+*/
+
+SELECT
+    emp_id,
+    first_name,
+    last_name,
+    hire_date,
+    DATEDIFF(year, hire_date, GETDATE()) as difference_date
+FROM
+    employees
+WHERE
+    DATEDIFF(year, hire_date, GETDATE()) >= 5;
+
+-- problem 5 -- 
+
+/*
+The customer_actions table can sometimes have duplicate entries for a customer's action on the same day. 
+For each customer_id and action_type, find the most recent action. 
+In case of a tie (multiple actions with the same action_date on the same day), prioritize the one with the highest action_id.
+*/
+
+select * 
+from (
+select 
+    customer_id,
+    action_id,
+    action_date,
+    action_type,
+    row_number() over (partition by customer_id, action_type order by action_date desc, action_id desc) as actions_per_day
+from customer_actions
+)t 
+where actions_per_day = 1;
+
+-- problem 6 -- 
+
+/*
+Find all employees whose salary is greater than the average salary of their respective department.
+The result should include the employee's first_name, last_name, salary, and their department's average_salary.
+*/
+
+select * 
+from (
+select 
+    emp_id,
+    first_name,
+    last_name,
+    dept_id,
+    salary,
+    avg(salary) over(partition by dept_id) as average_salary
+from employees 
+)t 
+where salary > average_salary;
+
+-- problem 7 -- 
+
+/*
+
+Create salary categories for all employees based on their salary. The categories should be:
+
+'Low Salary' for salaries less than or equal to $60,000
+'Medium Salary' for salaries between $60,001 and $80,000
+'High Salary' for salaries greater than $80,000
+
+The query should return the first_name, last_name, salary, and the new salary_category for each employee.
+
+*/
+
+select
+    emp_id,
+    concat(first_name, ' ', last_name) as full_name,
+    salary,
+    case    
+        when salary <= 60000 then 'Low_Salary'
+        when salary between 60001 and 80000 then 'Medium_Salary'
+        else 'High_salary'
+    end as salary_cateogry 
+from employees;
+
+-- problem 8 -- 
+
+/*
+
+give the count of the salary categories for all employees based on their salary. The categories should be:
+
+'Low Salary' for salaries less than or equal to $60,000
+'Medium Salary' for salaries between $60,001 and $80,000
+'High Salary' for salaries greater than $80,000
+
+The query should return the salary_category and the count of the employees in that category
+*/
+
+
+
+select 
+    salary_cateogry,
+    count(emp_id) as employee_count
+from (
+select
+    emp_id,
+    concat(first_name, ' ', last_name) as full_name,
+    salary,
+    case    
+        when salary <= 60000 then 'Low_Salary'
+        when salary between 60001 and 80000 then 'Medium_Salary'
+        else 'High_salary'
+    end as salary_cateogry 
+from employees
+)t 
+group by salary_cateogry;
+
+-- problem 9 -- 
+
+/*
+You have a product_updates table that contains new or updated product information. 
+Your task is to update the products table with this new information. 
+If a product_id from product_updates already exists in products, you should update the category, price, and stock_quantity. If the product_id does not exist, you should insert the new row into the products table.
+*/
+
+merge products as target 
+using product_updates as source 
+on (target.product_id = source.product_id)
+when matched then 
+    update Set  
+        target.product_name = source.product_name,
+        target.price = source.price,
+        target.category = source.category,
+        target.stock_quantity = source.stock_quantity
+when not matched then 
+    insert (product_id, product_name, category, price, stock_quantity)
+    values (source.product_id, source.product_name, source.category, source.price, source.stock_quantity);
+
+select * from products;
+select count(*) from products;
+
+-- problem 10 -- 
+
+/* 
+Find the full hierarchy for a given employee, showing the reporting chain from the top-level manager down to the employee.
+The query should return the emp_id, first_name, last_name, and manager_id for each person in the chain.
+*/
+
+with employees_manager as (
+    select 
+        emp_id,
+        first_name,
+        last_name,
+        manager_id,
+        1 as heirarchy_level 
+    from employees
+    where emp_id = 101
+
+    union all 
+
+    select 
+        e.emp_id,
+        e.first_name,
+        e.last_name,
+        e.manager_id,
+        em.heirarchy_level + 1 as heirarchy_level 
+    from employees e   
+    join employees_manager em
+    on e.manager_id = em.emp_id
+)
+select * 
+from employees_manager
+order by heirarchy_level;
+
+-- problem 11 -- 
+
+/*
+The customer_actions table logs every action a customer takes. 
+We want to find the total time (in minutes) a customer spent in a specific 'status'. 
+For simplicity, let's define a 'session' as the time between a login action and the next logout action. 
+Find the start and end time of each session and calculate the duration for a specific customer.
+*/
+
+SELECT
+    customer_id,
+    action_date AS session_start,
+    next_action_date AS session_end,
+    DATEDIFF(minute, action_date, next_action_date) AS session_duration_minutes
+FROM (
+    SELECT
+        customer_id,
+        action_type,
+        action_date,
+        LEAD(action_type) OVER (PARTITION BY customer_id ORDER BY action_date) AS next_action_type,
+        LEAD(action_date) OVER (PARTITION BY customer_id ORDER BY action_date) AS next_action_date
+    FROM
+        customer_actions
+) AS SessionData
+WHERE
+    action_type = 'login'
+    AND next_action_type = 'logout';
+
+-- problem 12 -- 
+
+-- Find all customers who have placed at least one order but have not made any sales.
+
+SELECT
+    c.customer_id,
+    c.first_name,
+    c.last_name
+FROM
+    customers c
+WHERE
+    c.customer_id IN (SELECT customer_id FROM orders)
+    AND c.customer_id NOT IN (SELECT customer_id FROM sales);
