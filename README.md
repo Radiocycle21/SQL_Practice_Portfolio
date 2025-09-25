@@ -29,7 +29,7 @@ This repository contains the following key files and components:
 
 1.  **businessDB Schema** - SQL or setup scripts for the database.
 2.  **businessDB Dataset** - The raw data used for analysis.
-3.  **Day 1 - Day 10 Files** - Individual files containing the daily problems and solutions.
+3.  **Day Files** - Individual files containing the daily problems and solutions.
 4.  **BusinessDB Schema ER Diagram** (Draw.io File) - Refer to this file for a visual representation of the database tables and relationships.
 5.  **License Page** - Licensing details for the project.
 6.  **README Page** - This document, providing an overview of the repository.
